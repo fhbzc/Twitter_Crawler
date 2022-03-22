@@ -3,7 +3,7 @@ Easy-to-use tool for mining tweets with Twitter API. Support both Twitter API ve
 
 It will collect tweets based on your need, and store the result either in a json file (supported only for academic API) or in a mongo database (supported for both academic API and Twitter API version 1)
 
-*Author*: hongbofang
+*Author*: Hongbo Fang 
 
 *Contact*: fanghongdoublebo@gmail.com
 
