@@ -10,7 +10,8 @@ It will collect tweets based on your need, and store the result either in a json
 # Get started
  - Download tw_crawler_release.py to your local machine
  - Import Twitter_Crawler_Version2 (for Twitter academic API ) or Twitter_Crawler (for Twitter API version 1) in your python script
-
+ - You will need Twitter Academic API Bearer token to use Twitter_Crawler_Version2. [get it here](https://developer.twitter.com/en/products/twitter-api/academic-research).
+ - You will need Twitter API version 1 to use Twitter_Crawler. [get it here](https://developer.twitter.com/en/docs/twitter-api/v1)
 
 # Examples
 
