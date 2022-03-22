@@ -1,5 +1,5 @@
 # Twitter_Crawler
-Easy-to-use tool for mining tweets with Twitter API. Support both Twitter API version 1 and 2 (academic API only).
+Easy-to-use tool for mining tweets with Twitter API. Support both Twitter API version 1 and academic API.
 
 It will collect tweets based on your need, and store the result either in a json file (supported only for academic API) or in a mongo database (supported for both academic API and Twitter API version 1)
 
