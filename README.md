@@ -1,11 +1,13 @@
 # Twitter_Crawler
 Easy-to-use tool for mining tweets with Twitter API. Support both Twitter API version 1 and academic API.
 
-It will collect tweets based on your need, and store the result either in a json file (supported only for academic API) or in a mongo database (supported for both academic API and Twitter API version 1)
+It will collect tweets based on your need, and store the result either in a json file (supported only for academic API) or in a mongo database (supported for both academic API and Twitter API version 1).
+
+To accelerate the collection speed with API version 1, multiprocess is implemented with the code.
 
 *Author*: Hongbo Fang 
 
-*Contact*: fanghongdoublebo@gmail.com
+*Contact*: fanghongdoublebo@gmail.com (Please contact me directly or post on issue if you want a new feature or find a bug)
 
 # Get started
  - Download tw_crawler_release.py to your local machine
@@ -14,8 +16,9 @@ It will collect tweets based on your need, and store the result either in a json
  - You will need Twitter API version 1 to use Twitter_Crawler. [get it here](https://developer.twitter.com/en/docs/twitter-api/v1)
 
 # Examples
-
- - Task 1: Collect all tweets posted by a given users with Twitter Academic API, and save it in a json file.
+Here are some examples to quickly get started!
+## Academic API (Twitter_Crawler_Version2)
+ - Task 1: Collect all tweets posted by given users, and save it in a json file.
     ```
     from tw_crawler_release import Twitter_Crawler_Version2
     
@@ -26,7 +29,7 @@ It will collect tweets based on your need, and store the result either in a json
                                           )
     ```
     The result is stored as a list of tweets collected.
-  - Task 2: Collect all tweets contain given keywords with Twitter Academic API, and save it in a json file.
+  - Task 2: Collect all tweets contain given keywords, and save it in a json file.
     ```
     from tw_crawler_release import Twitter_Crawler_Version2
     
@@ -37,6 +40,20 @@ It will collect tweets based on your need, and store the result either in a json
                                           )
     ```
     The result is stored as a list of tweets collected.
+    
+  - Task 3: Collect all tweets in reply to given tweets, and save it in a json file.
+   ```
+    from tw_crawler_release import Twitter_Crawler_Version2
+    
+    tw_crawler = Twitter_Crawler_Version2('YOUR TWITTER API BEARER_TOKEN')
+    tw_crawler.crawl_tweets_replyto_tweet(['1507319500684898317'], # list of tweets 
+                                          './save_result.json', # the json file directory to which you want to save your result
+                                          save_format = 'json' # indicate it's stored in json file
+                                          )
+   
+   ```
+## Twitter API version 1 (Twitter_Crawler)
+   Come up soon
 # Advanced features
  - Specify the post date range of tweet collected with academic API.
    ```
