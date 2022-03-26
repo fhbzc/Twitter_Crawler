@@ -26,6 +26,17 @@ class Twitter_Crawler_Version2():
         self.headers = {"Authorization": "Bearer {}".format(bearer_token)}
         self.mongo_db = mongo_db
 
+
+
+    def _crawl_tweets_given_id(self, 
+                                tweet_id_str, 
+                                field_list):
+        url = "https://api.twitter.com/2/tweets/%s"%tweet_id_str
+        params = {'tweet.fields': field_list}
+        response = requests.request("GET", url, headers=self.headers, params =  params)
+        return response
+
+
     def _crawl_tweets_replyto_tweet(self, 
                                 tweet_id_str, 
                                 end_time,
@@ -130,17 +141,18 @@ class Twitter_Crawler_Version2():
         return response
 
 
-    def _crawl_tweets_to_json(self,
+    def _crawl_tweets_search(self,
                       function,
                       data_list,
                       save_result_directory,
-                      end_time,
-                      start_time,
-                      field_list,
-                      verbose,
-                      save_crawled_keyword_dierctory_json,
-                      save_crawled_keyword_every,
-                      crawled_keyword_list):
+                      save_format = 'json',
+                      end_time = None,
+                      start_time = TWEET_STARTING_TIME,
+                      field_list = TW_API2_DEFAULT_FIELD,
+                      verbose = True,
+                      save_crawled_keyword_dierctory_json = None,
+                      save_crawled_keyword_every = 100,
+                      crawled_keyword_list = []):
         if len(start_time) != 20:
             print("start_time has to be in format yyyy-mm-ddThh:mm:ssZ. For example, a correct input would be 2006-03-21T00:00:00Z, but the current one is %s"%start_time)
 
@@ -148,19 +160,28 @@ class Twitter_Crawler_Version2():
         if start_time < TWEET_STARTING_TIME:
             return set()
 
-        try:
-          with open(save_result_directory, 'r') as f:
-            crawled_tweet_list = json.load(f)
+        if save_format == 'json':
+            try:
+              with open(save_result_directory, 'r') as f:
+                crawled_tweet_list = json.load(f)
 
-        except:
-            crawled_tweet_list = []
+            except:
+                crawled_tweet_list = []
 
-        crawled_tweet_id_str_set = set()
-        for tweet_info in crawled_tweet_list:
-            tweet_id_str = str(tweet_info['id'])
-            crawled_tweet_id_str_set.add(tweet_id_str)
+            crawled_tweet_id_str_set = set()
+            for tweet_info in crawled_tweet_list:
+                tweet_id_str = str(tweet_info['id'])
+                crawled_tweet_id_str_set.add(tweet_id_str)
 
-
+        elif save_format == 'mongo':
+            collection = self.mongo_db[save_result_directory]
+            crawled_tweet_id_str_set = set()
+            for tweet_info in collection.find():
+                tweet_id_str = str(tweet_info['id'])
+                crawled_tweet_id_str_set.add(tweet_id_str)
+        else:
+            print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
+            assert False
 
         range_ = range(len(data_list))
         if verbose == True:
@@ -170,122 +191,19 @@ class Twitter_Crawler_Version2():
             range_ = p(range_)
 
         error_data_set = set()
+        list_of_tweet_info = []
         for data_index in range_:
             data = data_list[data_index]
             next_token = None
-            list_of_tweet_info = []
             while True:
                 try:
                     results = function(data, end_time, field_list, start_time, next_token)
-
                     if results.text.strip().replace('/n', '').replace('/r', '') == 'Rate limit exceeded':
                         print("rate limit exceed")
                         time.sleep(60)
                         continue
                     results = json.loads(results.text)
-                    if 'title' in results:
-                        if results['title'] == 'Service Unavailable':
-                            error_data_set.add(data)
-                            break
-                        if results['title'] == 'Too Many Requests':
-                            time.sleep(1)
-                            continue
-                    if 'data' not in results and results['meta']['result_count'] == 0:
-                        break
-                    for tweet in results['data']:
-                        tweet_id_str = str(tweet['id'])
-                        if tweet_id_str in crawled_tweet_id_str_set:
-                            continue
 
-                        crawled_tweet_id_str_set.add(tweet_id_str)
-                        tweet['query_key'] = data
-                        tweet['crawled_time_str'] = datetime.utcnow().isoformat() + 'Z'
-                        tweet['crawl_range_starttime_str'] = start_time if start_time is not None else 'NULL'
-                        tweet['crawl_range_endtime_str'] = end_time if end_time is not None else 'NULL'
-                        crawled_tweet_list.append(tweet)
-                    if 'next_token' not in results['meta']:
-                        break
-                    next_token = results['meta']['next_token']
-
-                except:
-                    print("data", data)
-                    print("results", results)
-                    assert False
-
-            crawled_keyword_list.append(data)
-            if (data_index % save_crawled_keyword_every == 0):
-
-              with open(save_result_directory, 'w') as f:
-                json.dump(crawled_tweet_list, f)
-
-              if save_crawled_keyword_dierctory_json is not None:
-                  with open(save_crawled_keyword_dierctory_json, 'w') as f:
-                      json.dump(crawled_keyword_list, f)
-
-
-        with open(save_result_directory, 'w') as f:
-          json.dump(crawled_tweet_list, f)
-
-        if save_crawled_keyword_dierctory_json is not None:
-            with open(save_crawled_keyword_dierctory_json, 'w') as f:
-                json.dump(crawled_keyword_list, f)
-
-        if verbose == True:
-          p.finish()
-        return error_data_set
-
-
-
-
-
-    def _crawl_tweets_to_mongo(self,
-                      function,
-                      data_list,
-                      mongo_collection,
-                      end_time,
-                      start_time,
-                      field_list,
-                      verbose,
-                      save_crawled_keyword_dierctory_json,
-                      save_crawled_keyword_every,
-                      crawled_keyword_list):
-        if len(start_time) != 20:
-            print("start_time has to be in format yyyy-mm-ddThh:mm:ssZ. For example, a correct input would be 2006-03-21T00:00:00Z, but the current one is %s"%start_time)
-        assert save_crawled_keyword_every > 0, 'save_crawled_keyword_every should be a positive integer'
-
-        if start_time < TWEET_STARTING_TIME:
-            return set()
-
-        collection = self.mongo_db[mongo_collection]
-        crawled_tweet_id_str_set = set()
-        for tweet_info in collection.find():
-            tweet_id_str = str(tweet_info['id'])
-            crawled_tweet_id_str_set.add(tweet_id_str)
-            # won't insert the same tweet twice in the same mongodb
-
-
-
-        range_ = range(len(data_list))
-        if verbose == True:
-            print("size of crawled tweet set", len(crawled_tweet_id_str_set))
-            p = progressbar.ProgressBar()
-            p.start()
-            range_ = p(range_)
-
-        error_data_set = set()
-        for data_index in range_:
-            data = data_list[data_index]
-            next_token = None
-            list_of_tweet_info = []
-            while True:
-                try:
-                    results = function(data, end_time, field_list, start_time, next_token)
-
-                    if results.text.strip().replace('/n', '').replace('/r', '') == 'Rate limit exceeded':
-                        print("rate limit exceed")
-                        time.sleep(60)
-                        continue
-                    results = json.loads(results.text)
                     if 'title' in results:
                         if results['title'] == 'Service Unavailable':
                             error_data_set.add(data)
@@ -308,12 +226,8 @@ class Twitter_Crawler_Version2():
                         list_of_tweet_info.append(tweet)
                     if 'next_token' not in results['meta']:
                         break
-                    next_token = results['meta']['next_token']
 
-                    if len(list_of_tweet_info) >= 500:
-                        collection.insert(list_of_tweet_info)
-                        list_of_tweet_info = []
-                        
+                    next_token = results['meta']['next_token']
 
                 except:
                     print("data", data)
@@ -321,24 +235,177 @@ class Twitter_Crawler_Version2():
                     assert False
 
             crawled_keyword_list.append(data)
-            if len(list_of_tweet_info) > 0:
+            if (data_index % save_crawled_keyword_every == 0):
+                if save_format == 'json':
+                    crawled_tweet_list.extend(list_of_tweet_info)
+                    with open(save_result_directory, 'w') as f:
+                        json.dump(crawled_tweet_list, f)
+                    list_of_tweet_info = []
+                    if save_crawled_keyword_dierctory_json is not None:
+                        with open(save_crawled_keyword_dierctory_json, 'w') as f:
+                            json.dump(crawled_keyword_list, f)
+
+                elif save_format == 'mongo':
+                    if len(list_of_tweet_info) > 0:
+                        collection.insert(list_of_tweet_info)
+                    list_of_tweet_info = []
+                    if save_crawled_keyword_dierctory_json is not None:
+                        with open(save_crawled_keyword_dierctory_json, 'w') as f:
+                            json.dump(crawled_keyword_list, f)
+
+                else:
+                    assert False, 'error 260'
+        if len(list_of_tweet_info) > 0:
+            if save_format == 'json':
+                crawled_tweet_list.extend(list_of_tweet_info)
+                with open(save_result_directory, 'w') as f:
+                    json.dump(crawled_tweet_list, f)
+                list_of_tweet_info = []
+            elif save_format == 'mongo':
                 collection.insert(list_of_tweet_info)
                 list_of_tweet_info = []
-            if save_crawled_keyword_dierctory_json is not None and (data_index % save_crawled_keyword_every == 0):
-                with open(save_crawled_keyword_dierctory_json, 'w') as f:
-                    json.dump(crawled_keyword_list, f)
+            else:
+                assert False, 'error 274'
 
-        if len(list_of_tweet_info) > 0:
-            collection.insert(list_of_tweet_info)
-            list_of_tweet_info = []
 
         if save_crawled_keyword_dierctory_json is not None:
             with open(save_crawled_keyword_dierctory_json, 'w') as f:
                 json.dump(crawled_keyword_list, f)
 
         if verbose == True:
-          p.finish()
+            p.finish()
         return error_data_set
+
+
+    def _crawl_tweets_byid(self,
+                      function,
+                      data_list,
+                      save_result_directory,
+                      save_format = 'json',
+                      end_time = None,
+                      start_time = TWEET_STARTING_TIME,
+                      field_list = TW_API2_DEFAULT_FIELD,
+                      verbose = True,
+                      save_crawled_keyword_dierctory_json = None,
+                      save_crawled_keyword_every = 100,
+                      crawled_keyword_list = []):
+        if len(start_time) != 20:
+            print("start_time has to be in format yyyy-mm-ddThh:mm:ssZ. For example, a correct input would be 2006-03-21T00:00:00Z, but the current one is %s"%start_time)
+
+        assert save_crawled_keyword_every > 0, 'save_crawled_keyword_every should be a positive integer'
+        if start_time < TWEET_STARTING_TIME:
+            return set()
+
+        if save_format == 'json':
+            try:
+              with open(save_result_directory, 'r') as f:
+                crawled_tweet_list = json.load(f)
+
+            except:
+                crawled_tweet_list = []
+
+            crawled_tweet_id_str_set = set()
+            for tweet_info in crawled_tweet_list:
+                tweet_id_str = str(tweet_info['id'])
+                crawled_tweet_id_str_set.add(tweet_id_str)
+
+        elif save_format == 'mongo':
+            collection = self.mongo_db[save_result_directory]
+            crawled_tweet_id_str_set = set()
+            for tweet_info in collection.find():
+                tweet_id_str = str(tweet_info['id'])
+                crawled_tweet_id_str_set.add(tweet_id_str)
+        else:
+            print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
+            assert False
+
+        range_ = range(len(data_list))
+        if verbose == True:
+            print("size of crawled tweet set", len(crawled_tweet_id_str_set))
+            p = progressbar.ProgressBar()
+            p.start()
+            range_ = p(range_)
+
+        error_data_set = set()
+        list_of_tweet_info = []
+        for data_index in range_:
+            data = data_list[data_index]
+            tweet_id_str = str(data)
+            if tweet_id_str in crawled_tweet_id_str_set:
+                continue
+            try:
+                results = function(data, field_list)
+
+                if results.text.strip().replace('/n', '').replace('/r', '') == 'Rate limit exceeded':
+                    print("rate limit exceed")
+                    time.sleep(60)
+                    continue
+                results = json.loads(results.text)
+                if 'title' in results:
+                    if results['title'] == 'Service Unavailable':
+                        error_data_set.add(data)
+                        break
+                    if results['title'] == 'Too Many Requests':
+                        time.sleep(1)
+                        continue
+                if 'data' not in results:
+                    break
+                tweet = results['data']
+
+                crawled_tweet_id_str_set.add(tweet_id_str)
+                tweet['query_key'] = data
+                tweet['crawled_time_str'] = datetime.utcnow().isoformat() + 'Z'
+                tweet['crawl_range_starttime_str'] = start_time if start_time is not None else 'NULL'
+                tweet['crawl_range_endtime_str'] = end_time if end_time is not None else 'NULL'
+                list_of_tweet_info.append(tweet)
+
+            except:
+                print("data", data)
+                print("results", results)
+                assert False
+            crawled_keyword_list.append(data)
+            if (data_index % save_crawled_keyword_every == 0):
+                if save_format == 'json':
+                    crawled_tweet_list.extend(list_of_tweet_info)
+                    with open(save_result_directory, 'w') as f:
+                        json.dump(crawled_tweet_list, f)
+                    list_of_tweet_info = []
+                    if save_crawled_keyword_dierctory_json is not None:
+                        with open(save_crawled_keyword_dierctory_json, 'w') as f:
+                            json.dump(crawled_keyword_list, f)
+
+                elif save_format == 'mongo':
+                    
+                    if len(list_of_tweet_info) > 0: collection.insert(list_of_tweet_info)
+                    list_of_tweet_info = []
+                    if save_crawled_keyword_dierctory_json is not None:
+                        with open(save_crawled_keyword_dierctory_json, 'w') as f:
+                            json.dump(crawled_keyword_list, f)
+
+                else:
+                    assert False, 'error 260'
+
+        if len(list_of_tweet_info) > 0:
+            if save_format == 'json':
+                crawled_tweet_list.extend(list_of_tweet_info)
+                with open(save_result_directory, 'w') as f:
+                    json.dump(crawled_tweet_list, f)
+                list_of_tweet_info = []
+            elif save_format == 'mongo':
+                collection.insert(list_of_tweet_info)
+                list_of_tweet_info = []
+            else:
+                assert False, 'error 274'
+
+
+        if save_crawled_keyword_dierctory_json is not None:
+            with open(save_crawled_keyword_dierctory_json, 'w') as f:
+                json.dump(crawled_keyword_list, f)
+
+        if verbose == True:
+            p.finish()
+        return error_data_set
+
 
     def crawl_tweets_contain_keyword(self,
                                      keyword_list,
@@ -351,10 +418,10 @@ class Twitter_Crawler_Version2():
                                      save_crawled_keyword_dierctory_json = None,
                                      save_crawled_keyword_every = 100,
                                      crawled_keyword_list = []):
-        if save_format == 'mongo':
-          return self._crawl_tweets_to_mongo(self._crawl_tweets_contain_keyword,
+        return self._crawl_tweets_search(self._crawl_tweets_contain_keyword,
                                           keyword_list,
                                           result_save_location,
+                                          save_format,
                                           end_time,
                                           start_time = start_time,
                                           field_list = field_list,
@@ -362,20 +429,6 @@ class Twitter_Crawler_Version2():
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                           save_crawled_keyword_every = save_crawled_keyword_every,
                                           crawled_keyword_list = crawled_keyword_list)
-        elif save_format == 'json':
-          return self._crawl_tweets_to_json(self._crawl_tweets_contain_keyword,
-                                          keyword_list,
-                                          result_save_location,
-                                          end_time,
-                                          start_time = start_time,
-                                          field_list = field_list,
-                                          verbose = verbose,
-                                          save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
-                                          save_crawled_keyword_every = save_crawled_keyword_every,
-                                          crawled_keyword_list = crawled_keyword_list)
-        else:
-
-          print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
 
 
     def crawl_tweets_replyto_tweet(self,
@@ -389,10 +442,10 @@ class Twitter_Crawler_Version2():
                                save_crawled_keyword_dierctory_json = None,
                                save_crawled_keyword_every = 100,
                                crawled_keyword_list = []):
-        if save_format == 'mongo':
-          return self._crawl_tweets_to_mongo(self._crawl_tweets_replyto_tweet,
+        return self._crawl_tweets_search(self._crawl_tweets_replyto_tweet,
                                         tweet_id_str_list,
                                         result_save_location,
+                                        save_format,
                                         end_time,
                                         start_time = start_time,
                                         field_list = field_list,
@@ -400,21 +453,6 @@ class Twitter_Crawler_Version2():
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                         save_crawled_keyword_every = save_crawled_keyword_every,
                                         crawled_keyword_list = crawled_keyword_list)
-        elif save_format == 'json':
-
-          return self._crawl_tweets_to_json(self._crawl_tweets_replyto_tweet,
-                                        tweet_id_str_list,
-                                        result_save_location,
-                                        end_time,
-                                        start_time = start_time,
-                                        field_list = field_list,
-                                        verbose = verbose,
-                                        save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
-                                        save_crawled_keyword_every = save_crawled_keyword_every,
-                                        crawled_keyword_list = crawled_keyword_list)
-
-        else:
-          print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
 
     def crawl_tweets_from_user(self,
                                user_id_list,
@@ -427,10 +465,10 @@ class Twitter_Crawler_Version2():
                                save_crawled_keyword_dierctory_json = None,
                                save_crawled_keyword_every = 100,
                                crawled_keyword_list = []):
-        if save_format == 'mongo':
-          return self._crawl_tweets_to_mongo(self._crawl_tweets_from_user,
+        return self._crawl_tweets_search(self._crawl_tweets_from_user,
                                           user_id_list,
                                           result_save_location,
+                                          save_format,
                                           end_time,
                                           start_time = start_time,
                                           field_list = field_list,
@@ -438,20 +476,6 @@ class Twitter_Crawler_Version2():
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                           save_crawled_keyword_every = save_crawled_keyword_every,
                                           crawled_keyword_list = crawled_keyword_list)
-        elif save_format == 'json':
-
-          return self._crawl_tweets_to_json(self._crawl_tweets_from_user,
-                                          user_id_list,
-                                          result_save_location,
-                                          end_time,
-                                          start_time = start_time,
-                                          field_list = field_list,
-                                          verbose = verbose,
-                                          save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
-                                          save_crawled_keyword_every = save_crawled_keyword_every,
-                                          crawled_keyword_list = crawled_keyword_list)
-        else:
-          print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
 
     def crawl_tweets_contain_url(self,
                                  url_list,
@@ -464,11 +488,11 @@ class Twitter_Crawler_Version2():
                                  save_crawled_keyword_dierctory_json = None,
                                  save_crawled_keyword_every = 100,
                                  crawled_keyword_list = []):
-        if save_format == 'mongo':
 
-          return self._crawl_tweets_to_mongo(self._crawl_tweets_contain_url,
+        return self._crawl_tweets_search(self._crawl_tweets_contain_url,
                                         url_list,
                                         result_save_location,
+                                        save_format,
                                         end_time,
                                         start_time = start_time,
                                         field_list = field_list,
@@ -476,19 +500,22 @@ class Twitter_Crawler_Version2():
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                         save_crawled_keyword_every = save_crawled_keyword_every,
                                         crawled_keyword_list = crawled_keyword_list)
-        elif save_format == 'json':
-          return self._crawl_tweets_to_json(self._crawl_tweets_contain_url,
-                                        url_list,
+
+
+    def crawl_tweets_given_id(self,
+                              tw_id_list,
+                              result_save_location,
+                              save_format = 'mongo',
+                              field_list = TW_API2_DEFAULT_FIELD,
+                              verbose = True):
+
+        return self._crawl_tweets_byid(self._crawl_tweets_given_id,
+                                        tw_id_list,
                                         result_save_location,
-                                        end_time,
-                                        start_time = start_time,
+                                        save_format,
                                         field_list = field_list,
-                                        verbose = verbose,
-                                        save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
-                                        save_crawled_keyword_every = save_crawled_keyword_every,
-                                        crawled_keyword_list = crawled_keyword_list)
-        else:
-          print("save format not supported, please enter one of", SUPPORTED_SAVEFORMAT)
+                                        verbose = verbose)
+
 
 class Twitter_Crawler():
 
@@ -841,21 +868,14 @@ class Twitter_Crawler():
             continue_signal = False
             
             try:
-                if use_id_flag == True:
-                    for page in tweepy.Cursor(api.user_timeline, user_id = related_id, count = 100, tweet_mode = 'extended').pages(): 
-                        for status in page:
-                            result_json = status._json
-                            assert 'crawling_time_str' not in result_json
-                            result_json['crawled_time_str'] = datetime.utcnow().isoformat() + 'Z'
-                            full_tweet_list.append(result_json)
-                else:
-                    assert use_id_flag == False
-                    for page in tweepy.Cursor(api.user_timeline, screen_name = related_id, count = 100, tweet_mode = 'extended').pages(): 
-                        for status in page:
-                            result_json = status._json
-                            assert 'crawling_time_str' not in result_json
-                            result_json['crawled_time_str'] = datetime.utcnow().isoformat() + 'Z'
-                            full_tweet_list.append(result_json)
+                if use_id_flag == True: crawled_page = tweepy.Cursor(api.user_timeline, user_id = related_id, count = 100, tweet_mode = 'extended').pages()
+                else: crawled_page = tweepy.Cursor(api.user_timeline, screen_name = related_id, count = 100, tweet_mode = 'extended').pages()
+                for page in crawled_page: 
+                    for status in page:
+                        result_json = status._json
+                        assert 'crawling_time_str' not in result_json
+                        result_json['crawled_time_str'] = datetime.utcnow().isoformat() + 'Z'
+                        full_tweet_list.append(result_json)
             except tweepy.error.TweepError as e1:
                 str_e1 = str(e1)
                 if TWITTER_CRAWLING_ERROR_401 in str_e1:
@@ -1177,105 +1197,4 @@ class Twitter_Crawler():
                 json.dump(collected_tweet_list_overall, f)
 
         return unidentified_tweet_id_set
-
-
-
-# # Version 2 Test (supports academic API)
-if __name__ == "__main__":
-
-    # test on mongo version
-    import pymongo
-    client = pymongo.MongoClient(host='localhost', username = 'YOUR MONGO DB USERNAME', 
-        password = 'YOUR MONGO DB PASSWORD', authSource = 'Authorized database', port=27017)
-    db = client.twitter # a selected database (for example, mine is twitter)
-    tw_crawler = Twitter_Crawler_Version2('YOUR TWITTER API BEARER_TOKEN',
-                db)
-    tw_crawler.crawl_tweets_replyto_tweet([ '1506256297943048195', '1506256297943048195'], 'MONGO COLLECTION TO SAVE RESULT')
-
-
-
-    # test on json version
-
-    tw_crawler = Twitter_Crawler_Version2('YOUR TWITTER API BEARER_TOKEN')
-    tw_crawler.crawl_tweets_replyto_tweet([ '1506256297943048195', '1506256297943048195'], 
-                                          'JSON FILE TO SAVE RESULT', 
-                                          save_format = 'json')
-
-    tw_crawler.crawl_tweets_contain_keyword(['github.com/vnpy/vnpy'], 
-                                          'JSON FILE TO SAVE RESULT', 
-                                          save_format = 'json')
-
-
-    tw_crawler.crawl_tweets_from_user(['1169594598760562689'], 
-                                          'JSON FILE TO SAVE RESULT', 
-                                          save_format = 'json')
-
-
-    tw_crawler.crawl_tweets_contain_url(['github.com/vnpy/vnpy'], 
-                                          'JSON FILE TO SAVE RESULT', 
-                                          save_format = 'json')
-
-
-# Version 1 Test
-if __name__ == "__main__":
-
-    api_list_of_list = (
-['YOUR API KEY 1', 'YOUR API SECRET KEY 1', 'YOUR ACCESS TOKEN 1', 'YOUR ACCESS SECRET 1'],
-['YOUR API KEY 2', 'YOUR API SECRET KEY 2', 'YOUR ACCESS TOKEN 2', 'YOUR ACCESS SECRET 2'],
- )
-
-    tw_crawler = Twitter_Crawler(mongo_host = 'YOUR MONGO HOST',
-                                mongo_username = 'YOUR MONGO USER NAME',
-                                mongo_password = 'YOUR MONGO PASSWORD',
-                                mongo_authsource = 'YOUR MONGO DATABASE NAME',
-                                mongo_port = 27017 # your mongo connection port. For example, mine is 27017
-                                )
-
-
-
-    print(tw_crawler.get_tw_user_profile(['1169594598760562689'], # list of users to crawl their profile
-                                              api_list_of_list, # list api bundles
-                                              save_format = 'mongo',
-                                              result_save_location = 'MONGO COLLECTION NAME TO SAVE RESULT'))
-
-    print(tw_crawler.get_tw_user_tweets(['1169594598760562689'], # list of users to crawl their tweets (only the recent 3,200 accessible)
-                                          api_list_of_list,
-                                          save_format = 'mongo',
-                                          result_save_location = 'MONGO COLLECTION NAME TO SAVE RESULT'))
-
-    print(tw_crawler.get_tw_user_followers(['1169594598760562689'], # list of users to crawl their followers
-                                          api_list_of_list,
-                                          save_format = 'mongo',
-                                          result_save_location = 'MONGO COLLECTION NAME TO SAVE RESULT'))
-
-
-    print(tw_crawler.get_tw_tweets_by_tids(['1429155949789556739'], # list of tweet ids to crawl their profile
-                                              api_list_of_list,
-                                              save_format = 'mongo',
-                                              result_save_location = 'MONGO COLLECTION NAME TO SAVE RESULT'))
-
-
-    tw_crawler = Twitter_Crawler()
-
-
-    tw_crawler.get_tw_user_profile(['1169594598760562689'],
-                                              api_list_of_list,
-                                              save_format = 'json',
-                                              result_save_location = 'JSON FILE TO SAVE RESULT')
-
-    tw_crawler.get_tw_user_tweets(['1169594598760562689'],
-                                          api_list_of_list,
-                                          save_format = 'json',
-                                          result_save_location = 'JSON FILE TO SAVE RESULT')
-
-    tw_crawler.get_tw_user_followers(['1169594598760562689'],
-                                          api_list_of_list,
-                                          save_format = 'json',
-                                          result_save_location = 'JSON FILE TO SAVE RESULT')
-
-
-    tw_crawler.get_tw_tweets_by_tids(['1429155949789556739'],
-                                              api_list_of_list,
-                                              save_format = 'json',
-                                              result_save_location = 'JSON FILE TO SAVE RESULT')
 
