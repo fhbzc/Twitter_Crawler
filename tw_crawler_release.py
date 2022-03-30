@@ -211,6 +211,10 @@ class Twitter_Crawler_Version2():
                         if results['title'] == 'Too Many Requests':
                             time.sleep(1)
                             continue
+                        if results['title'] == 'UsageCapExceeded':
+                            time.sleep(60)
+                            continue
+
                     if 'data' not in results and results['meta']['result_count'] == 0:
                         break
                     for tweet in results['data']:
@@ -347,6 +351,9 @@ class Twitter_Crawler_Version2():
                         break
                     if results['title'] == 'Too Many Requests':
                         time.sleep(1)
+                        continue
+                    if results['title'] == 'UsageCapExceeded':
+                        time.sleep(60)
                         continue
                 if 'data' not in results:
                     break
