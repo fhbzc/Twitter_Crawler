@@ -42,7 +42,8 @@ class Twitter_Crawler_Version2():
                                 end_time,
                                 field_list,
                                 start_time,
-                                next_token = None):
+                                next_token = None,
+                                **params):
         url = "https://api.twitter.com/2/tweets/search/all"
         query = 'conversation_id:%s'%(str(tweet_id_str))
         if end_time is not None:
@@ -68,9 +69,15 @@ class Twitter_Crawler_Version2():
                                 end_time,
                                 field_list,
                                 start_time,
-                                next_token = None):
+                                next_token = None,
+                                **params):
         url = "https://api.twitter.com/2/tweets/search/all"
         query = 'from:%s'%(str(user_id))
+        if 'only_reference_flag' in params['variable'] and params['variable']['only_reference_flag'] == True:
+            query = ' '.join([query, '(is:retweet OR is:reply OR is:quote)'])
+        elif 'only_reply_flag' in params['variable'] and params['variable']['only_reply_flag'] == True:
+            query = ' '.join([query, '(is:reply)'])
+
         if end_time is not None:
           params = {'query': query, 
                     'tweet.fields': field_list,
@@ -94,7 +101,8 @@ class Twitter_Crawler_Version2():
                                 end_time,
                                 field_list,
                                 start_time,
-                                next_token = None):
+                                next_token = None,
+                                **params):
         url = "https://api.twitter.com/2/tweets/search/all"
         if end_time is not None:
           params = {'query': keyword, 
@@ -120,7 +128,8 @@ class Twitter_Crawler_Version2():
                                 end_time,
                                 field_list,
                                 start_time,
-                                next_token = None):
+                                next_token = None,
+                                **params):
         url = "https://api.twitter.com/2/tweets/search/all"
 
         query = 'url:"%s"'%url_input
@@ -152,7 +161,8 @@ class Twitter_Crawler_Version2():
                       verbose = True,
                       save_crawled_keyword_dierctory_json = None,
                       save_crawled_keyword_every = 100,
-                      crawled_keyword_list = []):
+                      crawled_keyword_list = [],
+                      **params):
         if len(start_time) != 20:
             print("start_time has to be in format yyyy-mm-ddThh:mm:ssZ. For example, a correct input would be 2006-03-21T00:00:00Z, but the current one is %s"%start_time)
 
@@ -197,7 +207,7 @@ class Twitter_Crawler_Version2():
             next_token = None
             while True:
                 try:
-                    results = function(data, end_time, field_list, start_time, next_token)
+                    results = function(data, end_time, field_list, start_time, next_token, variable = params['variable'])
                     if results.text.strip().replace('/n', '').replace('/r', '') == 'Rate limit exceeded':
                         print("rate limit exceed")
                         time.sleep(60)
@@ -424,7 +434,8 @@ class Twitter_Crawler_Version2():
                                      verbose = True,
                                      save_crawled_keyword_dierctory_json = None,
                                      save_crawled_keyword_every = 100,
-                                     crawled_keyword_list = []):
+                                     crawled_keyword_list = [],
+                                     **params):
         return self._crawl_tweets_search(self._crawl_tweets_contain_keyword,
                                           keyword_list,
                                           result_save_location,
@@ -435,7 +446,8 @@ class Twitter_Crawler_Version2():
                                           verbose = verbose,
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                           save_crawled_keyword_every = save_crawled_keyword_every,
-                                          crawled_keyword_list = crawled_keyword_list)
+                                          crawled_keyword_list = crawled_keyword_list,
+                                          variable = params)
 
 
     def crawl_tweets_replyto_tweet(self,
@@ -448,7 +460,8 @@ class Twitter_Crawler_Version2():
                                verbose = True,
                                save_crawled_keyword_dierctory_json = None,
                                save_crawled_keyword_every = 100,
-                               crawled_keyword_list = []):
+                               crawled_keyword_list = [],
+                               **params):
         return self._crawl_tweets_search(self._crawl_tweets_replyto_tweet,
                                         tweet_id_str_list,
                                         result_save_location,
@@ -459,7 +472,8 @@ class Twitter_Crawler_Version2():
                                         verbose = verbose,
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                         save_crawled_keyword_every = save_crawled_keyword_every,
-                                        crawled_keyword_list = crawled_keyword_list)
+                                        crawled_keyword_list = crawled_keyword_list,
+                                        variable = params)
 
     def crawl_tweets_from_user(self,
                                user_id_list,
@@ -471,7 +485,8 @@ class Twitter_Crawler_Version2():
                                verbose = True,
                                save_crawled_keyword_dierctory_json = None,
                                save_crawled_keyword_every = 100,
-                               crawled_keyword_list = []):
+                               crawled_keyword_list = [],
+                               **params):
         return self._crawl_tweets_search(self._crawl_tweets_from_user,
                                           user_id_list,
                                           result_save_location,
@@ -482,7 +497,8 @@ class Twitter_Crawler_Version2():
                                           verbose = verbose,
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                           save_crawled_keyword_every = save_crawled_keyword_every,
-                                          crawled_keyword_list = crawled_keyword_list)
+                                          crawled_keyword_list = crawled_keyword_list,
+                                          variable = params)
 
     def crawl_tweets_contain_url(self,
                                  url_list,
@@ -494,7 +510,8 @@ class Twitter_Crawler_Version2():
                                  verbose = True,
                                  save_crawled_keyword_dierctory_json = None,
                                  save_crawled_keyword_every = 100,
-                                 crawled_keyword_list = []):
+                                 crawled_keyword_list = [],
+                                 **params):
 
         return self._crawl_tweets_search(self._crawl_tweets_contain_url,
                                         url_list,
@@ -506,7 +523,8 @@ class Twitter_Crawler_Version2():
                                         verbose = verbose,
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
                                         save_crawled_keyword_every = save_crawled_keyword_every,
-                                        crawled_keyword_list = crawled_keyword_list)
+                                        crawled_keyword_list = crawled_keyword_list,
+                                        variable = params)
 
 
     def crawl_tweets_given_id(self,
