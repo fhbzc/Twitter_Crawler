@@ -154,6 +154,7 @@ class Twitter_Crawler_Version2():
                       save_format = 'json',
                       end_time = None,
                       start_time = TWEET_STARTING_TIME,
+                      limit = -1,
                       field_list = TW_API2_DEFAULT_FIELD,
                       verbose = True,
                       save_crawled_keyword_dierctory_json = None,
@@ -222,6 +223,9 @@ class Twitter_Crawler_Version2():
             data = data_list[data_index]
             if data in crawled_keyword_set:
                 continue
+
+            valid_tweets_id_set = set()
+            reach_limit_flag = False
             next_token = None
             error_flag = False
             while True:
@@ -263,14 +267,27 @@ class Twitter_Crawler_Version2():
                         tweet['crawl_range_starttime_str'] = start_time_item if start_time_item is not None else 'NULL'
                         tweet['crawl_range_endtime_str'] = end_time_item if end_time_item is not None else 'NULL'
                         list_of_tweet_info.append(tweet)
+                        valid_tweets_id_set.add(tweet['id'])
+
+                        if limit > 0 and len(valid_tweets_id_set) >= limit:
+                            reach_limit_flag = True
+                            break
+                    if reach_limit_flag == True:
+                        break
+
+                    # print(results['meta'])
+                    # assert False
                     if 'next_token' not in results['meta']:
                         break
+
 
                     next_token = results['meta']['next_token']
 
                 except:
                     print("data", data)
                     print("results", results)
+                    print("results.text", results.text)
+
                     assert False
             if error_flag == False:
                 crawled_keyword_set.add(data)
@@ -323,6 +340,7 @@ class Twitter_Crawler_Version2():
                       save_format = 'json',
                       end_time = None,
                       start_time = TWEET_STARTING_TIME,
+                      limit = -1,
                       field_list = TW_API2_DEFAULT_FIELD,
                       verbose = True,
                       save_crawled_keyword_dierctory_json = None,
@@ -455,6 +473,7 @@ class Twitter_Crawler_Version2():
                                      save_format = 'mongo',
                                      start_time = TWEET_STARTING_TIME,
                                      end_time = None,
+                                     limit = -1,
                                      field_list = TW_API2_DEFAULT_FIELD,
                                      verbose = True,
                                      save_crawled_keyword_dierctory_json = None,
@@ -466,6 +485,7 @@ class Twitter_Crawler_Version2():
                                           save_format,
                                           end_time,
                                           start_time = start_time,
+                                          limit = limit,
                                           field_list = field_list,
                                           verbose = verbose,
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
@@ -479,6 +499,7 @@ class Twitter_Crawler_Version2():
                                save_format = 'mongo',
                                start_time = TWEET_STARTING_TIME,
                                end_time = None,
+                               limit = -1,
                                field_list = TW_API2_DEFAULT_FIELD,
                                verbose = True,
                                save_crawled_keyword_dierctory_json = None,
@@ -490,6 +511,7 @@ class Twitter_Crawler_Version2():
                                         save_format,
                                         end_time,
                                         start_time = start_time,
+                                        limit = limit,
                                         field_list = field_list,
                                         verbose = verbose,
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
@@ -502,6 +524,7 @@ class Twitter_Crawler_Version2():
                                save_format = 'mongo',
                                start_time = TWEET_STARTING_TIME,
                                end_time = None,
+                               limit = -1,
                                field_list = TW_API2_DEFAULT_FIELD,
                                verbose = True,
                                save_crawled_keyword_dierctory_json = None,
@@ -513,6 +536,7 @@ class Twitter_Crawler_Version2():
                                           save_format,
                                           end_time,
                                           start_time = start_time,
+                                          limit = limit,
                                           field_list = field_list,
                                           verbose = verbose,
                                           save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
@@ -525,6 +549,7 @@ class Twitter_Crawler_Version2():
                                  save_format = 'mongo',
                                  start_time = TWEET_STARTING_TIME,
                                  end_time = None,
+                                 limit = -1,
                                  field_list = TW_API2_DEFAULT_FIELD,
                                  verbose = True,
                                  save_crawled_keyword_dierctory_json = None,
@@ -537,6 +562,7 @@ class Twitter_Crawler_Version2():
                                         save_format,
                                         end_time,
                                         start_time = start_time,
+                                        limit = limit,
                                         field_list = field_list,
                                         verbose = verbose,
                                         save_crawled_keyword_dierctory_json = save_crawled_keyword_dierctory_json,
@@ -548,6 +574,7 @@ class Twitter_Crawler_Version2():
                               tw_id_list,
                               result_save_location,
                               save_format = 'mongo',
+                              limit = -1,
                               field_list = TW_API2_DEFAULT_FIELD,
                               verbose = True):
 
@@ -555,6 +582,7 @@ class Twitter_Crawler_Version2():
                                         tw_id_list,
                                         result_save_location,
                                         save_format,
+                                        limit = limit,
                                         field_list = field_list,
                                         verbose = verbose)
 
