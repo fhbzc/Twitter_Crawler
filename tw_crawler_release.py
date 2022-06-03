@@ -173,7 +173,7 @@ class Twitter_Crawler_Version2():
             assert False, 'start_time input error'
 
 
-
+        list_end_time_flag = False
         if type(end_time) == TYPE_LIST:
             list_end_time_flag = True
             assert len(end_time) == len(data_list), 'Length of end_time must be the same as the length of input data'
