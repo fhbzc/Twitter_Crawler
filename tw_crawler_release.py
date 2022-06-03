@@ -182,7 +182,7 @@ class Twitter_Crawler_Version2():
                 
         elif type(end_time) == TYPE_STRING:
             list_end_time_flag = False
-        else:
+        elif end_time is not None:
             assert False, 'end_time input error'
         assert save_crawled_keyword_every > 0, 'save_crawled_keyword_every should be a positive integer'
 
@@ -303,7 +303,7 @@ class Twitter_Crawler_Version2():
 
                 elif save_format == 'mongo':
                     if len(list_of_tweet_info) > 0:
-                        collection.insert(list_of_tweet_info)
+                        collection.insert_many(list_of_tweet_info)
                     list_of_tweet_info = []
                     if save_crawled_keyword_dierctory_json is not None:
                         with open(save_crawled_keyword_dierctory_json, 'w') as f:
@@ -318,7 +318,8 @@ class Twitter_Crawler_Version2():
                     json.dump(crawled_tweet_list, f)
                 list_of_tweet_info = []
             elif save_format == 'mongo':
-                collection.insert(list_of_tweet_info)
+                if len(list_of_tweet_info) > 0:
+                    collection.insert_many(list_of_tweet_info)
                 list_of_tweet_info = []
             else:
                 assert False, 'error 274'
@@ -436,7 +437,7 @@ class Twitter_Crawler_Version2():
 
                 elif save_format == 'mongo':
                     
-                    if len(list_of_tweet_info) > 0: collection.insert(list_of_tweet_info)
+                    if len(list_of_tweet_info) > 0: collection.insert_many(list_of_tweet_info)
                     list_of_tweet_info = []
                     if save_crawled_keyword_dierctory_json is not None:
                         with open(save_crawled_keyword_dierctory_json, 'w') as f:
@@ -452,7 +453,7 @@ class Twitter_Crawler_Version2():
                     json.dump(crawled_tweet_list, f)
                 list_of_tweet_info = []
             elif save_format == 'mongo':
-                collection.insert(list_of_tweet_info)
+                if len(list_of_tweet_info) > 0: collection.insert_many(list_of_tweet_info)
                 list_of_tweet_info = []
             else:
                 assert False, 'error 274'
@@ -674,12 +675,12 @@ class Twitter_Crawler():
             if len(full_tweet_list) > 0:
                 if save_format == 'mongo':
                     try: 
-                        collection.insert(full_tweet_list)
+                        collection.insert_many(full_tweet_list)
                     except pymongo.errors.AutoReconnect as py_error:
                         insert_success = False
                         for reconnect_attemp_index in range(MAX_AUTO_RECONNECT_ATTEMPTS):
                             try:
-                                collection.insert(full_tweet_list)
+                                collection.insert_many(full_tweet_list)
                                 insert_success = True
                                 break
                             except pymongo.errors.AutoReconnect as py_error:
@@ -777,12 +778,12 @@ class Twitter_Crawler():
                             result_json['followerid_str_list'] = list(set(result_json['followerid_str_list']))
                             insert_result = [result_json]
                             try: 
-                                collection.insert(insert_result)
+                                collection.insert_many(insert_result)
                             except pymongo.errors.AutoReconnect as py_error:
                                 insert_success = False
                                 for reconnect_attemp_index in range(MAX_AUTO_RECONNECT_ATTEMPTS):
                                     try:
-                                        collection.insert(insert_result)
+                                        collection.insert_many(insert_result)
                                         insert_success = True
                                         break
                                     except pymongo.errors.AutoReconnect as py_error:
@@ -832,12 +833,12 @@ class Twitter_Crawler():
             if len(full_follower_list) > 0:
                 if save_format == 'mongo':
                     try: 
-                        collection.insert(full_follower_list)
+                        collection.insert_many(full_follower_list)
                     except pymongo.errors.AutoReconnect as py_error:
                         insert_success = False
                         for reconnect_attemp_index in range(MAX_AUTO_RECONNECT_ATTEMPTS):
                             try:
-                                collection.insert(full_follower_list)
+                                collection.insert_many(full_follower_list)
                                 insert_success = True
                                 break
                             except pymongo.errors.AutoReconnect as py_error:
@@ -863,12 +864,12 @@ class Twitter_Crawler():
         if len(full_follower_list) > 0:
             if save_format == 'mongo':
                 try: 
-                    collection.insert(full_follower_list)
+                    collection.insert_many(full_follower_list)
                 except pymongo.errors.AutoReconnect as py_error:
                     insert_success = False
                     for reconnect_attemp_index in range(MAX_AUTO_RECONNECT_ATTEMPTS):
                         try:
-                            collection.insert(full_follower_list)
+                            collection.insert_many(full_follower_list)
                             insert_success = True
                             break
                         except pymongo.errors.AutoReconnect as py_error:
@@ -973,12 +974,12 @@ class Twitter_Crawler():
             if len(full_tweet_list) > 0:
                 if save_format == 'mongo':
                     try: 
-                        collection.insert(full_tweet_list)
+                        collection.insert_many(full_tweet_list)
                     except pymongo.errors.AutoReconnect as py_error:
                         insert_success = False
                         for reconnect_attemp_index in range(MAX_AUTO_RECONNECT_ATTEMPTS):
                             try:
-                                collection.insert(full_tweet_list)
+                                collection.insert_many(full_tweet_list)
                                 insert_success = True
                                 break
                             except pymongo.errors.AutoReconnect as py_error:
@@ -1066,7 +1067,7 @@ class Twitter_Crawler():
                         json.dump(collected_user_list, f)
                     result_list = []
                 elif save_format == 'mongo':
-                    collection.insert(result_list)
+                    if len(result_list)>0: collection.insert_many(result_list)
                     result_list = [] # empty the list
                 else:
                     assert False, 'error 816'
@@ -1096,7 +1097,7 @@ class Twitter_Crawler():
 
         if len(result_list) > 0:
             if save_format == 'mongo':
-                collection.insert(result_list)
+                collection.insert_many(result_list)
                 result_list = [] # empty the list
 
             elif save_format == 'json':
